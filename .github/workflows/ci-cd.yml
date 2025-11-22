@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI Pipeline
 
 on:
   push:
@@ -7,72 +7,49 @@ on:
     branches: [main]
 
 jobs:
-  build-and-deploy:
+  gitleaks:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Run GitLeaks
+        uses: zricethezav/gitleaks-action@v2
+        with:
+          args: detect --source . --verbose --redact
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
+  build-and-test:
+    runs-on: ubuntu-latest
+    needs: gitleaks   # <-- enforce dependency
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Install backend dependencies
-      run: |
-        python -m venv venv
-        source venv/bin/activate
-        pip install -r requirements.txt
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-    - name: Install frontend dependencies
-      run: npm install
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
 
-    - name: Build frontend
-      run: npm run build
-      
-    - name: Run backend unit tests
-      run: |
-        python -m venv venv
-        source venv/bin/activate
-        pip install -r requirements.txt
-        pytest test_server.py
+      - name: Install backend dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
 
-    - name: Copy files to EC2
-      uses: appleboy/scp-action@v0.1.4
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_KEY }}
-        source: "."
-        target: "~/hyperswitch-react-python"
+      - name: Install frontend dependencies
+        run: npm install
 
-    - name: Restart backend and frontend on EC2
-      uses: appleboy/ssh-action@v0.1.10
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_KEY }}
-        script: |
-          cd ~/hyperswitch-react-python
-          rm -rf venv
-          python3 -m venv venv --system-site-packages
-          ./venv/bin/pip install --upgrade pip
-          ./venv/bin/pip install --break-system-packages -r requirements.txt
+      - name: Build frontend
+        run: npm run build
 
-          sudo systemctl restart flask-backend
-
-          # Ensure Node.js is installed before this step
-          cd ~/hyperswitch-react-python
-          npm install
-          npm run build
-
-          # Ensure Nginx is installed and /var/www/html exists
-          sudo mkdir -p /var/www/html
-          sudo cp -r build/* /var/www/html/
-
+      - name: Run backend unit tests
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+          pytest test_server.py
