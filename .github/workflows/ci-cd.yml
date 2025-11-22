@@ -18,9 +18,25 @@ jobs:
         with:
           args: detect --source . --verbose --redact
 
+  trivy:
+    runs-on: ubuntu-latest
+    needs: gitleaks
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          path: .
+          format: table
+          exit-code: 1
+          severity: HIGH,CRITICAL
+
   build-and-test:
     runs-on: ubuntu-latest
-    needs: gitleaks   # <-- enforce dependency
+    needs: trivy  # <-- enforce dependency
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
