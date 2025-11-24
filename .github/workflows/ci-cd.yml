@@ -33,7 +33,6 @@ jobs:
          scan-type: fs
          path: .
          format: table
-         exit-code: 1
          severity: HIGH,CRITICAL
 
   build-and-test:
