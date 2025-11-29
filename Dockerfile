@@ -1,9 +1,9 @@
 # Stage 1: Build React frontend
 FROM node:18 AS frontend-build
 WORKDIR /app/frontend
-COPY frontend/package*.json ./
+COPY package*.json ./
 RUN npm install
-COPY frontend/ .
+COPY ..
 RUN npm run build
 
 # Stage 2: Build Python backend
@@ -15,7 +15,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source
-COPY backend/ .
+COPY ..
 
 # Copy built frontend into backend's static folder
 COPY --from=frontend-build /app/frontend/build ./static
